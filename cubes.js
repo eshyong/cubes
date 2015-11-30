@@ -48,6 +48,8 @@ var player, blocks, sprites, keysPressed, map;
 // Initialization logic
 function init() {
     canvas = document.getElementById("canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
     context = canvas.getContext("2d");
 
     player = new Player(10, 270, PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT, PLAYER_COLOR);
@@ -157,10 +159,18 @@ Player.prototype.calculateNewVelocityY = function() {
         newVelocityY = this.velocityY + GRAVITY_ACCELERATION;
     } else {
         if (keysPressed.SPACE) {
-            // Space was just pressed and sprite is not jumping
-            // "Up" in the y-direction is negative
-            this.falling = true;
-            newVelocityY = -MAX_Y_VELOCITY;
+            // Only allow one jump per keypress
+            // Held down space key won't trigger multiple jumps
+            if (!this.jumped) {
+                // Space was just pressed and sprite is not jumping
+                // "Up" in the y-direction is negative
+                this.jumped = true;
+                this.falling = true;
+                newVelocityY = -MAX_Y_VELOCITY;
+            }
+        } else {
+            // Reset jumping flag
+            this.jumped = false;
         }
     }
     if (newVelocityY > MAX_Y_VELOCITY) {
@@ -192,6 +202,18 @@ Player.prototype.checkForCollision = function(block) {
             // Set falling to false and anchor player's y
             this.falling = false;
             this.y = block.y - this.height;
+        }
+    }
+
+    // If player is jumping up and its top is touching the bottom of a block
+    if (this.velocityY < 0 && Math.abs(playerTop - blockBottom) <= MAX_Y_VELOCITY) {
+        // If the player is horizontally aligned with the block, given some wiggle room
+        if (Math.abs(playerLeft - blockLeft) < this.width ||
+            Math.abs(playerRight - blockRight) < this.width) {
+            // Reduce player velocity and anchor player's y
+            // or maybe not?
+            this.velocityY = 0;
+            this.y = blockBottom;
         }
     }
 
@@ -338,19 +360,8 @@ function onKeyEvent(event, pressed) {
 
 // Game loop functions
 function gameLoop() {
-    updateState();
     updateSprites();
     drawSprites();
-}
-
-function updateState() {
-    for (var i = 0; i < sprites.length; i++) {
-        var sprite = sprites[i];
-        if (sprite.dead) {
-            // Remove one sprite from the middle of the array
-            sprites.splice(i, 1);
-        }
-    }
 }
 
 function updateSprites() {
@@ -359,6 +370,13 @@ function updateSprites() {
     blocks.forEach(function(block) {
         player.checkForCollision(block);
     });
+    // Clean up any dead sprites
+    for (var i = 0; i < sprites.length; i++) {
+        var sprite = sprites[i];
+        if (sprite.dead) {
+            sprites.splice(i, 1);
+        }
+    }
 }
 
 function drawSprites() {
