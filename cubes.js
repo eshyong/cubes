@@ -318,7 +318,7 @@ function onKeyEvent(event, pressed) {
 }
 
 // Game loop functions
-function loop() {
+function gameLoop() {
     updateState();
     updateSprites();
     drawSprites();
@@ -352,4 +352,4 @@ function drawSprites() {
 
 window.addEventListener("keydown", onKeyDown, false);
 window.addEventListener("keyup", onKeyUp, false);
-window.setInterval(loop, DEFAULT_DRAW_DELAY);
+window.setInterval(gameLoop, DEFAULT_DRAW_DELAY);
