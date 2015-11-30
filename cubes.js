@@ -185,13 +185,33 @@ Player.prototype.checkForCollision = function(block) {
     var blockBottom = block.y + block.height;
 
     // If player is falling down and its bottom is touching the top of a block
-    if (this.velocityY >= 0 && Math.abs(playerBottom - blockTop) < MAX_Y_VELOCITY) {
+    if (this.velocityY >= 0 && Math.abs(playerBottom - blockTop) <= MAX_Y_VELOCITY) {
         // If the player is horizontally aligned with the block, given some wiggle room
         if (Math.abs(playerLeft - blockLeft) < this.width ||
             Math.abs(playerRight - blockRight) < this.width) {
-            // Set falling to false and anchor player's height
+            // Set falling to false and anchor player's y
             this.falling = false;
             this.y = block.y - this.height;
+        }
+    }
+
+    // If player is moving to the right and its right is touching the side of a block
+    if (this.velocityX > 0 && Math.abs(playerRight - blockLeft) <= MAX_X_VELOCITY) {
+        // If the player is vertically aligned with the block, given some wiggle room
+        if (Math.abs(playerTop - blockTop) < this.height ||
+            Math.abs(playerBottom - blockBottom) < this.height) {
+            // Anchor player's x
+            this.x = block.x - this.width;
+        }
+    }
+
+    // If player is moving to the left and its left is touching the side of a block
+    if (this.velocityX < 0 && Math.abs(playerLeft - blockRight) <= MAX_X_VELOCITY) {
+        // If the player is vertically aligned with the block, given some wiggle room
+        if (Math.abs(playerTop - blockTop) < this.height ||
+            Math.abs(playerBottom - blockBottom) < this.height) {
+            // Anchor player's x
+            this.x = blockRight;
         }
     }
 };
@@ -199,7 +219,6 @@ Player.prototype.checkForCollision = function(block) {
 // Player specific update function
 // Includes logic for running, jumping, and shooting
 Player.prototype.update = function() {
-    console.log('this.falling: ' + this.falling);
     // Update position
     var newVelocityX = this.calculateNewVelocityX();
     var newVelocityY = this.calculateNewVelocityY();
