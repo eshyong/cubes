@@ -30,10 +30,6 @@ var BULLET_COLOR = "green";
 var NULL = 0;
 var BLOCK = 1;
 
-// Grid constants
-var GRID_WIDTH = canvas.width / DEFAULT_BLOCK_WIDTH;
-var GRID_HEIGHT = canvas.height / DEFAULT_BLOCK_HEIGHT;
-
 // Roughly corresponds to a delay allowing for 60fps action 
 var DEFAULT_DRAW_DELAY = 16;
 
@@ -51,6 +47,9 @@ var player, blocks, sprites, keysPressed, map;
 
 // Initialization logic
 function init() {
+    canvas = document.getElementById("canvas");
+    context = canvas.getContext("2d");
+
     player = new Player(10, 270, PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT, PLAYER_COLOR);
     sprites = [player];
     blocks = [];
@@ -58,12 +57,12 @@ function init() {
 
     // The player map, represented as a grid of blocks
     map = [
-        [NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL],
-        [NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL],
-        [NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL],
-        [NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL],
-        [NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  BLOCK, NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL],
-        [NULL , NULL,  NULL,  NULL,  NULL,  BLOCK, NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  BLOCK],
+        [NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL],
+        [NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL],
+        [NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL],
+        [NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL],
+        [NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, BLOCK, NULL, NULL, NULL, NULL, NULL, NULL, NULL],
+        [NULL, NULL, NULL, NULL, NULL, BLOCK, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, BLOCK],
         [BLOCK, BLOCK, BLOCK, BLOCK, BLOCK, BLOCK, BLOCK, BLOCK, BLOCK, BLOCK, BLOCK, BLOCK, BLOCK, BLOCK, BLOCK, BLOCK]
     ];
     // Add a new block sprite for each item in map
@@ -78,12 +77,12 @@ function init() {
                 blocks.push(block);
             }
         }
-    } 
+    }
 }
 
 // Classes
 // Sprite class, should be used like an abstract class
-var Sprite = function (x, y, w, h, color) {
+var Sprite = function(x, y, w, h, color) {
     // Position and visual attributes
     this.x = x;
     this.y = y;
@@ -93,37 +92,36 @@ var Sprite = function (x, y, w, h, color) {
     // Physics
     this.velocityX = 0;
     this.velocityY = 0;
-    this.jumping = false;
 
     // Color for drawing
     this.color = color;
 };
 
 // Drawing logic for sprites
-Sprite.prototype.draw = function () {
+Sprite.prototype.draw = function() {
     context.fillStyle = this.color;
     context.fillRect(this.x, this.y, this.width, this.height);
 };
 
 // Update logic for sprites
-Sprite.prototype.updateVelocity = function (newVelocityX, newVelocityY) {
+Sprite.prototype.updateVelocity = function(newVelocityX, newVelocityY) {
     this.velocityX = newVelocityX;
     this.velocityY = newVelocityY;
 };
 
-Sprite.prototype.updatePosition = function () {
+Sprite.prototype.updatePosition = function() {
     this.x += this.velocityX;
     this.y += this.velocityY;
 };
 
-Sprite.prototype.update = function () {
+Sprite.prototype.update = function() {
     // Should be implemented by classes inheriting Sprite
 };
 
 // Player class
-var Player = function (x, y, w, h, color) {
+var Player = function(x, y, w, h, color) {
     Sprite.call(this, x, y, w, h, color);
-    this.jumping = false;
+    this.falling = false;
     this.direction = RIGHT;
     this.shooting = false;
     this.dead = false;
@@ -133,7 +131,7 @@ var Player = function (x, y, w, h, color) {
 Player.prototype = Object.create(Sprite.prototype);
 Player.prototype.constructor = Sprite;
 
-Player.prototype.calculateNewVelocityX = function () {
+Player.prototype.calculateNewVelocityX = function() {
     // Update X velocity
     var newVelocityX = 0;
     if (keysPressed.LEFT) {
@@ -152,16 +150,16 @@ Player.prototype.calculateNewVelocityX = function () {
     return newVelocityX;
 };
 
-Player.prototype.calculateNewVelocityY = function () {
+Player.prototype.calculateNewVelocityY = function() {
     var newVelocityY = 0;
-    if (this.jumping) {
-        // Increase new velocity by gravity acceleration
+    if (this.falling) {
+        // Counteract player velocity with gravity acceleration
         newVelocityY = this.velocityY + GRAVITY_ACCELERATION;
     } else {
         if (keysPressed.SPACE) {
             // Space was just pressed and sprite is not jumping
             // "Up" in the y-direction is negative
-            this.jumping = true;
+            this.falling = true;
             newVelocityY = -MAX_Y_VELOCITY;
         }
     }
@@ -172,10 +170,9 @@ Player.prototype.calculateNewVelocityY = function () {
     return newVelocityY;
 };
 
-// Checks for collisions
 // If there is a collision between the player and a block, this
 // function will anchor the player's position to the colliding side of
-// the block. 
+// the block.
 Player.prototype.checkForCollision = function(block) {
     var playerLeft = this.x;
     var playerRight = this.x + this.width;
@@ -187,9 +184,13 @@ Player.prototype.checkForCollision = function(block) {
     var blockTop = block.y;
     var blockBottom = block.y + block.height;
 
-    if (this.velocityY > 0 && Math.abs(playerBottom - blockTop) < MAX_Y_VELOCITY) {
-        if (Math.abs(playerLeft - blockLeft) < this.width || Math.abs(playerRight - blockRight) < this.width) {
-            this.jumping = false;
+    // If player is falling down and its bottom is touching the top of a block
+    if (this.velocityY >= 0 && Math.abs(playerBottom - blockTop) < MAX_Y_VELOCITY) {
+        // If the player is horizontally aligned with the block, given some wiggle room
+        if (Math.abs(playerLeft - blockLeft) < this.width ||
+            Math.abs(playerRight - blockRight) < this.width) {
+            // Set falling to false and anchor player's height
+            this.falling = false;
             this.y = block.y - this.height;
         }
     }
@@ -197,28 +198,32 @@ Player.prototype.checkForCollision = function(block) {
 
 // Player specific update function
 // Includes logic for running, jumping, and shooting
-Player.prototype.update = function () {
+Player.prototype.update = function() {
+    console.log('this.falling: ' + this.falling);
     // Update position
     var newVelocityX = this.calculateNewVelocityX();
     var newVelocityY = this.calculateNewVelocityY();
     this.updateVelocity(newVelocityX, newVelocityY);
     this.updatePosition();
 
-    // TODO figure out how to test when player is free falling and not jumping
+    // TOOD figure out how to make player only jump once when space bar is held down
 
     // If the player falls through the screen then it dies
     if (!this.dead && this.y + this.height > canvas.height) {
         console.log("I'M DEAD");
         this.dead = true;
     }
+
+    // Player is always falling unless a collision occurs.
+    this.falling = true;
 };
 
-Player.prototype.draw = function () {
+Player.prototype.draw = function() {
     Sprite.prototype.draw.call(this);
 };
 
 // Bullet class
-var Bullet = function (x, y, w, h, color, direction) {
+var Bullet = function(x, y, w, h, color, direction) {
     Sprite.call(this, x, y, w, h, color);
     if (direction === LEFT) {
         // Should be twice the velocity of the player, so that the player doesn't follow it
@@ -233,14 +238,14 @@ var Bullet = function (x, y, w, h, color, direction) {
 Bullet.prototype = Object.create(Sprite.prototype);
 Bullet.prototype.constructor = Sprite;
 
-Bullet.prototype.update = function () {
+Bullet.prototype.update = function() {
     this.updatePosition();
     if (this.x < 0 || this.x > canvas.width) {
         this.dead = true;
     }
 };
 
-Bullet.prototype.draw = function () {
+Bullet.prototype.draw = function() {
     Sprite.prototype.draw.call(this);
 };
 
@@ -248,7 +253,7 @@ function shootBullet(player) {
     // Should probably not pass in the entire player object but oh well
     var bullet;
     if (player.direction === LEFT) {
-        bullet = new Bullet(player.x, player.y + player.height / 3, 
+        bullet = new Bullet(player.x, player.y + player.height / 3,
             BULLET_SPRITE_WIDTH, BULLET_SPRITE_HEIGHT,
             BULLET_COLOR, player.direction
         );
@@ -263,13 +268,13 @@ function shootBullet(player) {
 
 // Block class - these form platforms
 // Inherits from Sprite but has no special update logic
-var Block = function (x, y, w, h, color) {
+var Block = function(x, y, w, h, color) {
     Sprite.call(this, x, y, w, h, color);
 };
 Block.prototype = Object.create(Sprite.prototype);
 Block.prototype.constructor = Sprite;
 
-Block.prototype.draw = function () {
+Block.prototype.draw = function() {
     Sprite.prototype.draw.call(this);
 };
 
@@ -320,16 +325,6 @@ function loop() {
 }
 
 function updateState() {
-    // For a later game, maybe
-    /*
-    if (keysPressed.SHOOT && !player.shooting) {
-        player.shooting = true;
-        shootBullet(player);
-    }
-    if (!keysPressed.SHOOT && player.shooting) {
-        player.shooting = false;
-    }
-    */
     for (var i = 0; i < sprites.length; i++) {
         var sprite = sprites[i];
         if (sprite.dead) {
@@ -340,17 +335,17 @@ function updateState() {
 }
 
 function updateSprites() {
-    // Update player velocity, check for player collisions, then update player's state
-    blocks.forEach(function (block) {
+    // Update player state, then check for player collisions
+    player.update();
+    blocks.forEach(function(block) {
         player.checkForCollision(block);
     });
-    player.update();
 }
 
 function drawSprites() {
     // Clear screen first
     context.clearRect(0, 0, canvas.width, canvas.height);
-    sprites.forEach(function (sprite) {
+    sprites.forEach(function(sprite) {
         sprite.draw();
     });
 }
