@@ -3,8 +3,8 @@
 "use strict";
 
 // Canvas objects
-var canvas = document.getElementById("canvas");
-var context = canvas.getContext("2d");
+var canvas;
+var context;
 
 // Constants
 // Keyboard codes
